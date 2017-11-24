@@ -1,6 +1,11 @@
 # Prerequisites
 *.d
 
+# CodeBlocks extension
+.layout
+.depends
+.cbp
+
 # Object files
 *.o
 *.ko
