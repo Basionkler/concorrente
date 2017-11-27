@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <math.h>
 #include <concurrent.h>
 #include <CUnit/CUnit.h>
 
@@ -21,7 +22,8 @@ buffer_t* buffer_init(unsigned int maxsize){
 	buffer->buffer_init = buffer_init;
 	buffer->buffer_destroy = buffer_destroy;
 
-	pthread_mutex_init(&(buffer->mutex), NULL);
+	pthread_mutex_init(&(buffer->mutexProd), NULL);
+	pthread_mutex_init(&(buffer->mutexCons), NULL);
 	pthread_cond_init(&(buffer->notFull), NULL);
 	pthread_cond_init(&(buffer->notEmpty), NULL);
 
@@ -29,9 +31,10 @@ buffer_t* buffer_init(unsigned int maxsize){
 }
 
 // deallocazione di un buffer
-void buffer_destroy(buffer_t* buffer){
+void buffer_destroy(buffer_t * buffer){
 
-	pthread_mutex_destroy(&(buffer->mutex));
+	pthread_mutex_destroy(&(buffer->mutexProd));
+	pthread_mutex_destroy(&(buffer->mutexCons));
 	pthread_cond_destroy(&(buffer->notFull));
 	pthread_cond_destroy(&(buffer->notEmpty));
 	int i = 0;
@@ -50,14 +53,38 @@ void buffer_destroy(buffer_t* buffer){
 // effettua l’inserimento non appena si libera dello spazio
 // restituisce il messaggio inserito; N.B.: msg!=null
 msg_t* put_bloccante(buffer_t* buffer, msg_t* msg){
+    if(msg != NULL) {
+        while(slotLiberi(buffer) == 0)
+            pthread_cond_wait(&(buffer->notFull), &(buffer->mutexProd));
 
+        pthread_mutex_lock(&(buffer->mutexProd));
+
+        int i = buffer->produce;
+        buffer->message[i] = *msg;
+        buffer->produce = (i+1) % buffer->size;
+        pthread_cond_signal(&(buffer->notEmpty));
+        pthread_mutex_unlock(&(buffer->mutexProd));
+        return msg;
+    }
+    return BUFFER_ERROR;
 }
 
 // inserimento non bloccante: restituisce BUFFER_ERROR se pieno,
 // altrimenti effettua l’inserimento e restituisce il messaggio
 // inserito; N.B.: msg!=null
 msg_t* put_non_bloccante(buffer_t* buffer, msg_t* msg){
-
+    int i = buffer->produce;
+    pthread_mutex_lock(&(buffer->mutexProd));
+    if(msg != NULL) {
+        if(slotLiberi(buffer) > 0) {
+            buffer->message[i] = *msg;
+            buffer->produce = (i+1) % buffer->size;
+            pthread_mutex_unlock(&(buffer->mutexProd));
+            return msg;
+        }
+    }
+    pthread_mutex_unlock(&(buffer->mutexProd));
+    return BUFFER_ERROR;
 }
 
 // estrazione bloccante: sospende se vuoto, quindi
@@ -72,10 +99,17 @@ msg_t* get_non_bloccante(buffer_t* buffer) {
 
 }
 
+//Restituisce il numero di caselle libere(Scrivibili) del buffer
+int slotLiberi(buffer_t* buffer) {
+    if(buffer->produce > buffer->consume)
+        return (buffer->produce + 1) - buffer->consume;
+    else if(buffer->produce < buffer->consume)
+        return abs(buffer->produce - buffer->consume);
+    else return 0;
+}
+
 int main() {
     buffer_t* buffer = buffer_init(8);
-    printf("%d\n", &buffer);
-    printf("%d\n", &buffer->message);
     buffer_destroy(&buffer);
     return 0;
 }

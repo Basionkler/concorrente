@@ -15,7 +15,8 @@ typedef struct buffer {
     int consume; //indice per i consumatori
     msg_t* message; //contenuto del blocco
 
-    pthread_mutex_t mutex; //Mutex
+    pthread_mutex_t mutexProd; //Mutex Produttori
+    pthread_mutex_t mutexCons; //Mutex Consumatori
     pthread_cond_t notEmpty; //Buffer non vuoto
     pthread_cond_t notFull; //Buffer non pieno
 
@@ -49,5 +50,8 @@ msg_t* get_bloccante(buffer_t* buffer);
 // estrazione non bloccante: restituisce BUFFER_ERROR se vuoto
 // ed il valore estratto in caso contrario
 msg_t* get_non_bloccante(buffer_t* buffer);
+
+//Conteggio degli "Slot vuoti" all'interno del buffer
+int slotLiberi(buffer_t* buffer);
 
 #endif
