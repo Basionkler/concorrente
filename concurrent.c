@@ -109,7 +109,5 @@ int slotLiberi(buffer_t* buffer) {
 }
 
 int main() {
-    buffer_t* buffer = buffer_init(8);
-    buffer_destroy(&buffer);
     return 0;
 }

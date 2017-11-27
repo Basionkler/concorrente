@@ -1,0 +1,9 @@
+# depslib dependency file v1.0
+1511796685 source:/home/panda/Scrivania/HWC/concurrent.c
+	<stdio.h>
+	<stdlib.h>
+	<pthread.h>
+	<math.h>
+	<concurrent.h>
+	<CUnit/CUnit.h>
+
