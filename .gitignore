@@ -2,9 +2,9 @@
 *.d
 
 # CodeBlocks extension
-.layout
-.depends
-.cbp
+*.layout
+*.depends
+*.cbp
 
 # Object files
 *.o
