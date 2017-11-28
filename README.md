@@ -1,5 +1,12 @@
 # concorrente
 #HWC
+
+V 1.0
+- Terminati tutti i metodi richiesti sugli inserimenti e sulle estrazioni
+- test.c inizializzato
+- Inseriti i Suite su buffer unitario e k-sized
+- Inserita la prima batteria di test su buffer unitario
+
 V 0.6
 - Implementate Get bloccante e non bloccante
 - Riorganizzati gli import

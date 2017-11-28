@@ -149,9 +149,7 @@ msg_t* get_non_bloccante(buffer_t* buffer) {
 
 //Restituisce il numero di caselle libere(Scrivibili) del buffer
 int slotLiberi(buffer_t* buffer) {
-    if(buffer->produce > buffer->consume)
+    if(buffer->produce >= buffer->consume)
         return (buffer->produce + 1) - buffer->consume;
-    else if(buffer->produce < buffer->consume)
-        return abs(buffer->produce - buffer->consume);
-    else return 0;
+    else return abs(buffer->produce - buffer->consume);
 }

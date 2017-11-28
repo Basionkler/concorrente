@@ -6,33 +6,54 @@
 buffer_t* bufferUnitary;
 buffer_t* buffer;
 
-/* SERVICE FUNCTIONS */
+/* ============================ STARTING SUITE CASES ============================*/
+/*SUITE K-SIZED BUFFER*/
 int init_createBuffer(void) {
     buffer = buffer_init(4);
-    return buffer != NULL;
-}
-
-int init_createBufferUnitary(void) {
-    bufferUnitary = buffer_init(1);
-    return bufferUnitary != NULL;
+    if(buffer != NULL) return 0;
+    else return 1;
 }
 
 int clean_destroyBuffer(void) {
     buffer_destroy(buffer);
-    return buffer == NULL;
+    if(buffer != NULL) return 0;
+    else return 1;
+}
+/* END K-SIZED BUFFER SUITE */
+
+/*  SUITE UNITARY BUFFER */
+int init_createBufferUnitary(void) {
+    bufferUnitary = buffer_init(1);
+    if(bufferUnitary != NULL) return 0;
+    else return 1;
 }
 
 int clean_destroyBufferUnitary(void) {
     buffer_destroy(bufferUnitary);
-    return bufferUnitary == NULL;
+    if(bufferUnitary != NULL) return 0;
+    else return 1;
 }
+/* END UNITARY BUFFER SUITE */
 
-/* TEST STACK */
+/* ============================ STARTING TEST CASES ============================*/
 
+/* STACK TEST UNITARY BUFFER*/
+
+// un buffer unitario ha dimensione 1
 void test_unitaryDimension(void) {
     if(bufferUnitary != NULL)
         CU_ASSERT(1 == bufferUnitary->size);
 }
+
+// un buffer appena creato ha esattamente uno slot libero
+void test_emptyNewUnitaryBufferFreeSlot(void) {
+    if(bufferUnitary != NULL)
+        CU_ASSERT(1 == slotLiberi(bufferUnitary));
+}
+
+/* END UNITARY BUFFER STACK TEST */
+
+/* ============================ ENDING TEST CASES ============================*/
 
 /* MAIN */
 int main() {
@@ -44,14 +65,16 @@ int main() {
     if (CUE_SUCCESS != CU_initialize_registry())
         return CU_get_error();
 
-    cUnitBufferUnitary = CU_add_suite("Adding Unitary Buffer Suite Creation:\n", init_createBufferUnitary, clean_destroyBufferUnitary);
+    cUnitBufferUnitary = CU_add_suite("Adding Unitary Buffer Suite Creation.", init_createBufferUnitary, clean_destroyBufferUnitary);
     if(NULL == cUnitBufferUnitary) {
         CU_cleanup_registry();
         return CU_get_error();
     }
 
-    /*ADDING FIRST STACK*/
-    if(NULL == CU_add_test(cUnitBufferUnitary, "Test[0] | Unitary Dimension:\t", test_unitaryDimension)) {
+    /*ADDING UNITARY STACK TEST*/
+    if( CU_add_test(cUnitBufferUnitary, "Test[0] | Unitary Dimension\t", test_unitaryDimension) == NULL ||
+        CU_add_test(cUnitBufferUnitary, "Test[1] | Free Slots (Buffer just created)\t", test_emptyNewUnitaryBufferFreeSlot) == NULL
+        ) {
         CU_cleanup_registry();
         return CU_get_error();
        }
