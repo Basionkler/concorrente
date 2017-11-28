@@ -1,11 +1,33 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <pthread.h>
-#include <math.h>
-#include <CUnit/CUnit.h>
 #include "concurrent.h"
 
 #define BUFFER_ERROR (msg_t *) NULL
+
+/* Allocazione / deallocazione / copia messaggio */
+//Creazione di un messaggio
+msg_t * msg_init(void* content) {
+
+    msg_t * msg = (msg_t*)malloc(sizeof(msg_t));
+    char* castContent = (char*)malloc(sizeof(char));
+
+    castContent = (char*)content;
+    msg->content = castContent;
+
+    msg->msg_init = msg_init;
+    msg->msg_copy = msg_copy;
+    msg->msg_destroy = msg_destroy;
+    return msg;
+}
+
+//Copia di un messaggio
+msg_t * msg_copy(msg_t* msg) {
+    return msg->msg_init(msg->content);
+}
+
+//Deallocazione di un messaggio
+void msg_destroy(msg_t* msg) {
+    free(msg->content);
+    free(msg);
+}
 
 
 /* allocazione / deallocazione buffer */
@@ -124,7 +146,7 @@ msg_t* get_non_bloccante(buffer_t* buffer) {
     buffer->consume = (i+1) % buffer->size;
     pthread_cond_signal(&(buffer->notFull));
     pthread_mutex_unlock(&(buffer->mutexCons));
-
+    return msg;
 }
 
 //Restituisce il numero di caselle libere(Scrivibili) del buffer
