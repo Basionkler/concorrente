@@ -1,5 +1,7 @@
-#include <CUnit/CUnit.h>
 #include "concurrent.h"
+#include "CUnit/CUnit.h"
+#include "CUnit/Basic.h"
+
 
 buffer_t* bufferUnitary;
 buffer_t* buffer;
@@ -23,4 +25,38 @@ int clean_destroyBuffer(void) {
 int clean_destroyBufferUnitary(void) {
     buffer_destroy(bufferUnitary);
     return bufferUnitary == NULL;
+}
+
+/* TEST STACK */
+
+void test_unitaryDimension(void) {
+    if(bufferUnitary != NULL)
+        CU_ASSERT(1 == bufferUnitary->size);
+}
+
+/* MAIN */
+int main() {
+
+    CU_pSuite cUnitBufferUnitary = NULL;
+    CU_pSuite cUnitBuffer = NULL;
+
+    /* initialize the CUnit test registry */
+    if (CUE_SUCCESS != CU_initialize_registry())
+        return CU_get_error();
+
+    cUnitBufferUnitary = CU_add_suite("Adding Unitary Buffer Suite Creation:\n", init_createBufferUnitary, clean_destroyBufferUnitary);
+    if(cUnitBufferUnitary == NULL)        CU_cleanup_registry();
+        return CU_get_error();
+        return CU_get_error();
+
+    /*ADDING FIRST STACK*/
+    if(NULL == CU_add_test(cUnitBufferUnitary, "Test[0] | Unitary Dimension:\t", test_unitaryDimension)) {
+        CU_cleanup_registry();
+        return CU_get_error();
+       }
+
+    /* Run all tests using the CUnit Basic interface */
+    CU_basic_run_tests();
+    CU_cleanup_registry();
+    return CU_get_error();
 }

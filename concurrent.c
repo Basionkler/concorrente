@@ -155,7 +155,3 @@ int slotLiberi(buffer_t* buffer) {
         return abs(buffer->produce - buffer->consume);
     else return 0;
 }
-
-int main() {
-    return 0;
-}
