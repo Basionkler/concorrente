@@ -2,29 +2,29 @@
 
 /* Allocazione / deallocazione / copia messaggio */
 //Creazione di un messaggio
-msg_t * msg_init(void* content) {
+msg_t * msg_init_string(void* content) {
 
     msg_t * msg = (msg_t*)malloc(sizeof(msg_t));
-    char* castContent = (char*)malloc(sizeof(char));
+    char* string = (char*)content;
+    char* new_content = (char*)malloc(strlen(string)+1); //+1 per lo /0 finale
+    strcpy(new_content, string);
 
-    castContent = (char*)content;
-    msg->content = castContent;
-
-    msg->msg_init = msg_init;
-    msg->msg_copy = msg_copy;
-    msg->msg_destroy = msg_destroy;
+    msg->content = new_content;
+    msg->msg_init = msg_init_string;
+    msg->msg_copy = msg_copy_string;
+    msg->msg_destroy = msg_destroy_string;
     return msg;
 }
 
-//Copia di un messaggio
-msg_t * msg_copy(msg_t* msg) {
-    return msg->msg_init(msg->content);
-}
-
 //Deallocazione di un messaggio
-void msg_destroy(msg_t* msg) {
+void msg_destroy_string(msg_t* msg) {
     free(msg->content);
     free(msg);
+}
+
+//Copia di un messaggio
+msg_t * msg_copy_string(msg_t* msg) {
+    return msg->msg_init(msg->content);
 }
 
 

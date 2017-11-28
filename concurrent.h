@@ -6,7 +6,6 @@
 #include <pthread.h>
 #include <string.h>
 #include <math.h>
-#include <CUnit/CUnit.h>
 
 typedef struct msg {
     void* content; // generico contenuto del messaggio
@@ -33,13 +32,13 @@ typedef struct buffer {
 
 /* allocazione / deallocazione / copia messaggio */
 //Creazione di un messaggio
-msg_t * msg_init();
+msg_t * msg_init_string(void* content);
 
 //Copia di un messaggio
-msg_t * msg_copy(msg_t* msg);
+msg_t * msg_copy_string(msg_t* msg);
 
 //Deallocazione di un messaggio
-void msg_destroy(msg_t* msg);
+void msg_destroy_string(msg_t* msg);
 
 /* allocazione / deallocazione buffer */
 // creazione di un buffer vuoto di dim. max nota
