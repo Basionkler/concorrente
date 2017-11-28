@@ -3,7 +3,7 @@
 
 # CodeBlocks extension
 *.layout
-*.depends
+*.depend
 *.cbp
 
 # Object files

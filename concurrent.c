@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <math.h>
-#include <concurrent.h>
 #include <CUnit/CUnit.h>
+#include "concurrent.h"
 
 #define BUFFER_ERROR (msg_t *) NULL
 
@@ -54,10 +54,9 @@ void buffer_destroy(buffer_t * buffer){
 // restituisce il messaggio inserito; N.B.: msg!=null
 msg_t* put_bloccante(buffer_t* buffer, msg_t* msg){
     if(msg != NULL) {
+        pthread_mutex_lock(&(buffer->mutexProd));
         while(slotLiberi(buffer) == 0)
             pthread_cond_wait(&(buffer->notFull), &(buffer->mutexProd));
-
-        pthread_mutex_lock(&(buffer->mutexProd));
 
         int i = buffer->produce;
         buffer->message[i] = *msg;
@@ -91,11 +90,40 @@ msg_t* put_non_bloccante(buffer_t* buffer, msg_t* msg){
 // restituisce il valore estratto non appena disponibile
 msg_t* get_bloccante(buffer_t* buffer) {
 
+    pthread_mutex_lock(&(buffer->mutexCons));
+
+    while(buffer->size - slotLiberi(buffer) == 0)
+        pthread_cond_wait(&(buffer->notEmpty), &(buffer->mutexCons));
+
+    int i = buffer->consume;
+    msg_t* msg = (msg_t*)malloc(sizeof(msg_t));
+    msg = &buffer->message[i];
+    buffer->message[i].msg_destroy;
+    buffer->consume = (i+1) % buffer->size;
+    pthread_cond_signal(&(buffer->notFull));
+    pthread_mutex_unlock(&(buffer->mutexCons));
+    return msg;
+
 }
 
 // estrazione non bloccante: restituisce BUFFER_ERROR se vuoto
 // ed il valore estratto in caso contrario
 msg_t* get_non_bloccante(buffer_t* buffer) {
+
+    pthread_mutex_lock(&(buffer->mutexCons));
+
+    if(buffer->size - slotLiberi(buffer) == 0){
+        pthread_mutex_unlock(&(buffer->mutexCons));
+        return BUFFER_ERROR;
+    }
+
+    int i = buffer->consume;
+    msg_t* msg = (msg_t*)malloc(sizeof(msg_t));
+    msg = &buffer->message[i];
+    buffer->message[i].msg_destroy;
+    buffer->consume = (i+1) % buffer->size;
+    pthread_cond_signal(&(buffer->notFull));
+    pthread_mutex_unlock(&(buffer->mutexCons));
 
 }
 
