@@ -1,7 +1,5 @@
 #include "concurrent.h"
 
-#define BUFFER_ERROR (msg_t *) NULL
-
 /* Allocazione / deallocazione / copia messaggio */
 //Creazione di un messaggio
 msg_t * msg_init(void* content) {
@@ -120,7 +118,6 @@ msg_t* get_bloccante(buffer_t* buffer) {
     int i = buffer->consume;
     msg_t* msg = (msg_t*)malloc(sizeof(msg_t));
     msg = &buffer->message[i];
-    buffer->message[i].msg_destroy;
     buffer->consume = (i+1) % buffer->size;
     pthread_cond_signal(&(buffer->notFull));
     pthread_mutex_unlock(&(buffer->mutexCons));
@@ -142,7 +139,6 @@ msg_t* get_non_bloccante(buffer_t* buffer) {
     int i = buffer->consume;
     msg_t* msg = (msg_t*)malloc(sizeof(msg_t));
     msg = &buffer->message[i];
-    buffer->message[i].msg_destroy;
     buffer->consume = (i+1) % buffer->size;
     pthread_cond_signal(&(buffer->notFull));
     pthread_mutex_unlock(&(buffer->mutexCons));
