@@ -1,6 +1,7 @@
 #include "concurrent.h"
 #include "CUnit/CUnit.h"
 #include "CUnit/Basic.h"
+#include <pthread.h>
 
 
 buffer_t* bufferUnitary;
@@ -48,7 +49,34 @@ void test_unitaryDimension(void) {
 // un buffer appena creato ha esattamente uno slot libero
 void test_emptyNewUnitaryBufferFreeSlot(void) {
     if(bufferUnitary != NULL)
-        CU_ASSERT(1 == slotLiberi(bufferUnitary));
+        CU_ASSERT(1 == bufferUnitary->freeSlots);
+}
+
+// (P=1; C=0; N=1) Produzione di un solo messaggio in un buffer vuoto
+void test_singleProductionEmptyUnitaryBuffer(void) {
+	msg_t* msg = msg_init_string("EXPECTED_MESSAGE");
+	msg_t* expected;
+
+	arg_t args;
+	args.buffer = bufferUnitary;
+	args.msg = msg;
+
+	if(bufferUnitary != NULL) {
+		pthread_t thread;
+		
+		CU_ASSERT (1 == bufferUnitary->freeSlots);
+
+		pthread_create(&thread, NULL, args_put_bloccante, &args);
+		pthread_join(thread, (void*)&expected);
+
+		CU_ASSERT_EQUAL(msg, expected);
+		CU_ASSERT (0 == bufferUnitary->freeSlots); //Verifico che l'inserimento sia andato a buon fine
+	}
+}
+
+//(P=0; C=1; N=1) Consumazione di un solo messaggio da un buffer pieno
+void test_singleGetEmptyUnitaryBuffer(void) {
+
 }
 
 /* END UNITARY BUFFER STACK TEST */
@@ -72,8 +100,9 @@ int main() {
     }
 
     /*ADDING UNITARY STACK TEST*/
-    if( CU_add_test(cUnitBufferUnitary, "Test[0] | Unitary Dimension\t", test_unitaryDimension) == NULL ||
-        CU_add_test(cUnitBufferUnitary, "Test[1] | Free Slots (Buffer just created)\t", test_emptyNewUnitaryBufferFreeSlot) == NULL
+    if( CU_add_test(cUnitBufferUnitary, "Test[0] | Unitary Dimension", test_unitaryDimension) == NULL ||
+        CU_add_test(cUnitBufferUnitary, "Test[1] | Free Slots (Buffer just created)", test_emptyNewUnitaryBufferFreeSlot) == NULL ||
+        CU_add_test(cUnitBufferUnitary, "Test[2] | Produzione di un solo messaggio in un buffer vuoto", test_singleProductionEmptyUnitaryBuffer) == NULL
         ) {
         CU_cleanup_registry();
         return CU_get_error();
