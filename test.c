@@ -74,9 +74,23 @@ void test_singleProductionEmptyUnitaryBuffer(void) {
 	}
 }
 
-//(P=0; C=1; N=1) Consumazione di un solo messaggio da un buffer pieno
-void test_singleGetEmptyUnitaryBuffer(void) {
+// (P=1; C=0; N=1) Produzione in un buffer pieno
+void test_singlePutUnitaryBuffer(void) {
+	msg_t* msg = msg_init_string("EXPECTED_MESSAGE");
+	msg_t* expected;
 
+	arg_t args;
+	args.buffer = bufferUnitary;
+	args.msg = msg;
+
+	if(bufferUnitary != NULL) {
+		pthread_t thread;
+		CU_ASSERT (0 == bufferUnitary->freeSlots); //Verifico che è già pieno
+		pthread_create(&thread, NULL, args_put_non_bloccante, &args);
+		pthread_join(thread, (void*)&expected);
+		CU_ASSERT_EQUAL(BUFFER_ERROR, expected);
+		CU_ASSERT (0 == bufferUnitary->freeSlots); //Verifico che è ancora pieno
+	}
 }
 
 /* END UNITARY BUFFER STACK TEST */
@@ -102,7 +116,8 @@ int main() {
     /*ADDING UNITARY STACK TEST*/
     if( CU_add_test(cUnitBufferUnitary, "Test[0] | Unitary Dimension", test_unitaryDimension) == NULL ||
         CU_add_test(cUnitBufferUnitary, "Test[1] | Free Slots (Buffer just created)", test_emptyNewUnitaryBufferFreeSlot) == NULL ||
-        CU_add_test(cUnitBufferUnitary, "Test[2] | Produzione di un solo messaggio in un buffer vuoto", test_singleProductionEmptyUnitaryBuffer) == NULL
+        CU_add_test(cUnitBufferUnitary, "Test[2] | Produzione di un solo messaggio in un buffer vuoto", test_singleProductionEmptyUnitaryBuffer) == NULL ||
+        CU_add_test(cUnitBufferUnitary, "Test[3] | Produzione in un buffer pieno", test_singlePutUnitaryBuffer) == NULL
         ) {
         CU_cleanup_registry();
         return CU_get_error();

@@ -74,8 +74,9 @@ void buffer_destroy(buffer_t * buffer){
 // effettua l’inserimento non appena si libera dello spazio
 // restituisce il messaggio inserito; N.B.: msg!=null
 msg_t* put_bloccante(buffer_t* buffer, msg_t* msg){
+    pthread_mutex_lock(&(buffer->mutexProd));
     if(msg != NULL) {
-        pthread_mutex_lock(&(buffer->mutexProd));
+        
         while(buffer->freeSlots == 0)
             pthread_cond_wait(&(buffer->notFull), &(buffer->mutexProd));
 
@@ -87,6 +88,7 @@ msg_t* put_bloccante(buffer_t* buffer, msg_t* msg){
         pthread_mutex_unlock(&(buffer->mutexProd));
         return msg;
     }
+    pthread_mutex_unlock(&(buffer->mutexProd));
     return BUFFER_ERROR;
 }
 
@@ -101,8 +103,9 @@ void* args_put_bloccante(void* arguments) {
 // altrimenti effettua l’inserimento e restituisce il messaggio
 // inserito; N.B.: msg!=null
 msg_t* put_non_bloccante(buffer_t* buffer, msg_t* msg){
-    int i = buffer->produce;
+    int i = buffer->produce;;
     pthread_mutex_lock(&(buffer->mutexProd));
+    //printf("%s", (char*)msg->content);
     if(msg != NULL) {
         if(buffer->freeSlots > 0) {
             buffer->message[i] = *msg;
@@ -118,8 +121,10 @@ msg_t* put_non_bloccante(buffer_t* buffer, msg_t* msg){
 }
 
 void* args_put_non_bloccante(void* arguments) {
-    arg_t *args = arguments;
-    msg_t* msg = put_bloccante(args->buffer, args->msg);
+    arg_t *args = (arg_t*)arguments;
+    buffer_t* buff = (buffer_t*)args->buffer;
+    msg_t* expected = (msg_t*)args->msg;
+    msg_t* msg = put_non_bloccante(buff, expected);
     pthread_exit(msg);
 }
 
