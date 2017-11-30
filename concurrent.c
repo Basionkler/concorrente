@@ -121,10 +121,8 @@ msg_t* put_non_bloccante(buffer_t* buffer, msg_t* msg){
 }
 
 void* args_put_non_bloccante(void* arguments) {
-    arg_t *args = (arg_t*)arguments;
-    buffer_t* buff = (buffer_t*)args->buffer;
-    msg_t* expected = (msg_t*)args->msg;
-    msg_t* msg = put_non_bloccante(buff, expected);
+    arg_t *args = arguments;
+    msg_t* msg = put_non_bloccante(args->buffer, args->msg);
     pthread_exit(msg);
 }
 
@@ -139,8 +137,7 @@ msg_t* get_bloccante(buffer_t* buffer) {
         pthread_cond_wait(&(buffer->notEmpty), &(buffer->mutexCons));
 
     int i = buffer->consume;
-    msg_t* msg = (msg_t*)malloc(sizeof(msg_t));
-    msg = (msg_t*)buffer->message[i].msg_copy;
+    msg_t* msg = msg_init_string(buffer->message[i].content); //Copio il contenuto del messaggio estratt
     buffer->message[i].msg_destroy;
     buffer->consume = (i+1) % buffer->size;
     buffer->freeSlots = buffer->freeSlots + 1;
@@ -167,9 +164,8 @@ msg_t* get_non_bloccante(buffer_t* buffer) {
     }
 
     int i = buffer->consume;
-    msg_t* msg = (msg_t*)malloc(sizeof(msg_t));
-    msg = (msg_t*)buffer->message[i].msg_copy;
-    buffer->message[i].msg_destroy;
+    msg_t* msg = msg_init_string(buffer->message[i].content); //Copio il contenuto del messaggio estratto
+    buffer->message[i].msg_destroy; //Distruggo il messaggio nel buffer
     buffer->consume = (i+1) % buffer->size;
     buffer->freeSlots = buffer->freeSlots + 1;
     pthread_cond_signal(&(buffer->notFull));
@@ -179,7 +175,7 @@ msg_t* get_non_bloccante(buffer_t* buffer) {
 
 void* args_get_non_bloccante(void* buffer){
     
-    msg_t* msg = get_bloccante((buffer_t*) buffer);
+    msg_t* msg = get_non_bloccante((buffer_t*) buffer);
     
     pthread_exit(msg);
 }

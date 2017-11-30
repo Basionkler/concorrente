@@ -1,6 +1,14 @@
 # concorrente
 #HWC
 
+V 1.5
+- Major bug fix for args_put_bloccante
+- Major bug fix for args_put_non_bloccante
+- Major bug fix for args_get_bloccante
+- Major bug fix for args_get_non_bloccante
+- Test-Case improvements
+- Starting Multi-Thread Suite test-cases
+
 V 1.0
 - Terminati tutti i metodi richiesti sugli inserimenti e sulle estrazioni
 - test.c inizializzato
