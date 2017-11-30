@@ -155,9 +155,135 @@ void test_putAndGetUnitaryBuffer(void) {
 	}
 }
 
+// (P>1; C=0; N=1) Produzione concorrente di molteplici messaggi in un buffer unitario vuoto
+void test_multiplePutUnitaryBuffer(void) {
+	msg_t* msg = msg_init_string("EXPECTED_MESSAGE");
+	msg_t* expected_a;
+	msg_t* expected_b;
+	msg_t* expected_c;
+
+	arg_t args;
+	args.buffer = bufferUnitary;
+	args.msg = msg;
+
+	if(bufferUnitary != NULL) {
+		pthread_t prod_a;
+		pthread_t prod_b;
+		pthread_t prod_c;
+		
+		CU_ASSERT(1 == bufferUnitary->freeSlots); //Verifico che è vuoto
+		pthread_create(&prod_a, NULL, args_put_non_bloccante, &args);
+		pthread_create(&prod_b, NULL, args_put_non_bloccante, &args);
+		pthread_create(&prod_c, NULL, args_put_non_bloccante, &args);
+
+		CU_ASSERT(0 == bufferUnitary->freeSlots); //Verifico che è pieno
+
+		pthread_join(prod_a, (void*)&expected_a);
+		pthread_join(prod_b, (void*)&expected_b);
+		pthread_join(prod_c, (void*)&expected_c);
+
+		if(expected_c != NULL && 0 == strcmp(expected_c->content, msg->content)) {
+			CU_ASSERT_EQUAL(expected_b, BUFFER_ERROR); //Verifico che non c'è inserimento
+			CU_ASSERT_EQUAL(expected_a, BUFFER_ERROR); //Verifico che non c'è inserimento
+		} else if (expected_b != NULL && 0 == strcmp(expected_b->content, msg->content)){
+			CU_ASSERT_EQUAL(expected_a, BUFFER_ERROR); //Verifico che non c'è inserimento
+			CU_ASSERT_EQUAL(expected_c, BUFFER_ERROR); //Verifico che non c'è inserimento
+		} else if (expected_a != NULL && 0 == strcmp(expected_a->content, msg->content)) {
+			CU_ASSERT_EQUAL(expected_c, BUFFER_ERROR); //Verifico che non c'è inserimento
+			CU_ASSERT_EQUAL(expected_b, BUFFER_ERROR); //Verifico che non c'è inserimento
+		}
+		CU_ASSERT(0 == bufferUnitary->freeSlots); //Buffer pieno
+	}
+}
+
+// (P=1; C=1; N=1) Consumazione e produzione concorrente di un messaggio da un buffer unitario; prima il consumatore
+void test_getAndPutUnitaryBuffer(void) {
+	msg_t* msg = msg_init_string("EXPECTED_MESSAGE");
+	msg_t* expectedPut;
+	msg_t* expectedGet;
+
+	arg_t args;
+	args.buffer = bufferUnitary;
+	args.msg = msg;
+	if(bufferUnitary != NULL) {
+		pthread_t cons;
+		pthread_t prod;
+
+		CU_ASSERT(0 == bufferUnitary->freeSlots); //Verifico che il buffer è pieno
+		pthread_create(&cons, NULL, args_get_bloccante, bufferUnitary);
+		pthread_join(cons, (void*)&expectedGet);
+		CU_ASSERT(1 == bufferUnitary->freeSlots) //Verifico che è vuoto
+		CU_ASSERT(0 == strcmp(msg->content, expectedGet->content)); //Verifico che il messaggio estratto sia quello atteso
+
+		pthread_create(&prod, NULL, args_put_bloccante, &args);
+		pthread_join(prod, (void*)&expectedPut);
+		CU_ASSERT(0 == bufferUnitary->freeSlots); //Verifico che il buffer è pieno
+		CU_ASSERT(0 == strcmp(msg->content, expectedPut->content)); //Verifico che il messaggio inserito sia quello atteso
+
+	}
+}
+
+// (P=0; C>1; N=1) Consumazione concorrente di molteplici messaggi da un buffer unitario pieno
+void test_multipleGetUnitaryFullBuffer(void) {
+	msg_t* msg = msg_init_string("EXPECTED_MESSAGE");
+	msg_t* expected_a;
+	msg_t* expected_b;
+	msg_t* expected_c;
+
+	if(bufferUnitary != NULL) {
+		pthread_t cons_a;
+		pthread_t cons_b;
+		pthread_t cons_c;
+
+		CU_ASSERT(0 == bufferUnitary->freeSlots); //Verifico che il buffer è pieno
+		pthread_create(&cons_a, NULL, args_get_non_bloccante, bufferUnitary);
+		pthread_join(cons_a, (void*)&expected_a);
+		CU_ASSERT(0 == strcmp(msg->content, expected_a->content)); //Verifico che il messaggio estratto sia quello atteso
+		CU_ASSERT(1 == bufferUnitary->freeSlots); //Il buffer è vuoto
+
+		pthread_create(&cons_b, NULL, args_get_non_bloccante, bufferUnitary);
+		pthread_join(cons_b, (void*)&expected_b);
+		CU_ASSERT_EQUAL(expected_b, BUFFER_ERROR);
+
+		pthread_create(&cons_c, NULL, args_get_non_bloccante, bufferUnitary);
+		pthread_join(cons_c, (void*)&expected_c);
+		CU_ASSERT_EQUAL(expected_c, BUFFER_ERROR);
+		CU_ASSERT(1 == bufferUnitary->freeSlots); //Il buffer continua a essere vuoto
+	}
+}
+
 /*END UNITARY BUFFER (MULTI THREAD)*/
 
-/* ============================ ENDING TEST CASES ============================*/
+/* START BUFFER K-SIZED TEST-CASES */
+
+// (P>1; C=0; N>1) Produzione concorrente di molteplici messaggi in un buffer vuoto; il buffer si satura in corso
+void test_fullfillingEmptyBuffer(void) {
+	msg_t* msg = msg_init_string("EXPECTED_MESSAGE");
+
+	arg_t args;
+	args.buffer = bufferUnitary;
+	args.msg = msg;
+
+	if(buffer != NULL) {
+
+	}
+}
+
+// (P>1; C=0; N>1) Produzione concorrente di molteplici messaggi in un buffer pieno; il buffer è già saturo
+void test_multiplePutFullBuffer(void) {
+
+}
+
+//(P=0; C>1; N>1) Consumazione concorrente di molteplici messaggi da un buffer pieno
+
+//(P>1; C=0; N>1) Produzione concorrente di molteplici messaggi in un buffer vuoto; il buffer non si riempe
+void test_multiplePutEmptyBuffer(void) {
+
+}
+
+/* END BUFFER K-SIZED TEST-CASES */
+
+/* ============================ ENDING ALL TEST CASES ============================*/
 
 /* MAIN */
 int main() {
@@ -172,14 +298,14 @@ int main() {
         return CU_get_error();
 
     /* SUITE DI CREAZIONE BUFFER UNITARIO SINGLE THREAD */
-    cUnitBufferUnitary = CU_add_suite("\n\nAdding unitary buffer suite creation...", init_createBufferUnitary, clean_destroyBufferUnitary);
+    cUnitBufferUnitary = CU_add_suite("Adding unitary buffer suite creation...", init_createBufferUnitary, clean_destroyBufferUnitary);
     if(NULL == cUnitBufferUnitary) {
         CU_cleanup_registry();
         return CU_get_error();
     }
 
     /* SUITE DI CREAZIONE BUFFER UNITARIO MULTI THREAD */
-    cUnitBufferUnitary_multi = CU_add_suite("\n\nAdding Unitary Buffer Multi-Thread suite creation...", init_createBufferUnitary, clean_destroyBufferUnitary);
+    cUnitBufferUnitary_multi = CU_add_suite("Adding Unitary Buffer Multi-Thread suite creation...", init_createBufferUnitary, clean_destroyBufferUnitary);
     if(NULL == cUnitBufferUnitary_multi) {
     	CU_cleanup_registry();
         return CU_get_error();
@@ -197,9 +323,14 @@ int main() {
 	        return CU_get_error();
        }
 
+    printf("\n\n");
+
     /*ADDING UNITARY-SINGLE-THREAD STACK TEST*/
-    if( CU_add_test(cUnitBufferUnitary_multi, "Test[6] | Consumazione e produzione concorrente di un messaggio in un buffer unitario; prima il produttore", test_putAndGetUnitaryBuffer) == NULL)
-    	{
+    if( CU_add_test(cUnitBufferUnitary_multi, "Test[6] | Consumazione e produzione concorrente di un messaggio in un buffer unitario; prima il produttore", test_putAndGetUnitaryBuffer) == NULL ||
+    	CU_add_test(cUnitBufferUnitary_multi, "Test[7] | Produzione concorrente di molteplici messaggi in un buffer unitario vuoto", test_multiplePutUnitaryBuffer) == NULL ||
+    	CU_add_test(cUnitBufferUnitary_multi, "Test[8] | Consumazione e produzione concorrente di un messaggio in un buffer unitario; prima il consumatore", test_getAndPutUnitaryBuffer) == NULL ||
+    	CU_add_test(cUnitBufferUnitary_multi, "Test[9] | Consumazione concorrente di molteplici messaggi da un buffer unitario pieno", test_multipleGetUnitaryFullBuffer) == NULL
+    	) {
     		CU_cleanup_registry();
 	        return CU_get_error();
     }

@@ -1,6 +1,9 @@
 # concorrente
 #HWC
 
+V 1.6
+- Improvements to test-concurrency
+
 V 1.5
 - Major bug fix for args_put_bloccante
 - Major bug fix for args_put_non_bloccante

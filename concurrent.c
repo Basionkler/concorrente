@@ -179,15 +179,3 @@ void* args_get_non_bloccante(void* buffer){
     
     pthread_exit(msg);
 }
-
-//Restituisce il numero di caselle libere(Scrivibili) del buffer
-/*
-int slotLiberi(buffer_t* buffer) {
-    if(buffer->produce == buffer->consume)
-        return buffer->size;
-    else if(buffer->produce == buffer->consume - 1)
-        return 0;
-    else if(buffer->produce > buffer->consume)
-        return (buffer->produce + 1) - buffer->consume;
-    else return abs(buffer->produce - buffer->consume);
-} */
