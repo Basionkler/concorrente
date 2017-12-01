@@ -74,21 +74,23 @@ void buffer_destroy(buffer_t * buffer){
 // effettua l’inserimento non appena si libera dello spazio
 // restituisce il messaggio inserito; N.B.: msg!=null
 msg_t* put_bloccante(buffer_t* buffer, msg_t* msg){
-    pthread_mutex_lock(&(buffer->mutexProd));
+    pthread_mutex_lock(&buffer->mutexProd);
+
+
     if(msg != NULL) {
         
         while(buffer->freeSlots == 0)
-            pthread_cond_wait(&(buffer->notFull), &(buffer->mutexProd));
+            pthread_cond_wait(&buffer->notFull, &buffer->mutexProd);
 
         int i = buffer->produce;
         buffer->message[i] = *msg;
         buffer->produce = (i+1) % buffer->size;
         buffer->freeSlots = buffer->freeSlots-1;
-        pthread_cond_signal(&(buffer->notEmpty));
-        pthread_mutex_unlock(&(buffer->mutexProd));
+        pthread_cond_signal(&buffer->notEmpty);
+        pthread_mutex_unlock(&buffer->mutexProd);
         return msg;
     }
-    pthread_mutex_unlock(&(buffer->mutexProd));
+    pthread_mutex_unlock(&buffer->mutexProd);
     return BUFFER_ERROR;
 }
 
@@ -105,7 +107,6 @@ void* args_put_bloccante(void* arguments) {
 msg_t* put_non_bloccante(buffer_t* buffer, msg_t* msg){
     int i = buffer->produce;;
     pthread_mutex_lock(&(buffer->mutexProd));
-    //printf("%s", (char*)msg->content);
     if(msg != NULL) {
         if(buffer->freeSlots > 0) {
             buffer->message[i] = *msg;
@@ -134,14 +135,13 @@ msg_t* get_bloccante(buffer_t* buffer) {
     pthread_mutex_lock(&(buffer->mutexCons));
 
     while(buffer->size - buffer->freeSlots == 0) // Se il buffer è vuoto
-        pthread_cond_wait(&(buffer->notEmpty), &(buffer->mutexCons));
-
+        pthread_cond_wait(&buffer->notEmpty, &buffer->mutexCons);
     int i = buffer->consume;
-    msg_t* msg = msg_init_string(buffer->message[i].content); //Copio il contenuto del messaggio estratt
+    msg_t* msg = msg_init_string(buffer->message[i].content); //Copio il contenuto del messaggio estratto
     buffer->message[i].msg_destroy;
     buffer->consume = (i+1) % buffer->size;
     buffer->freeSlots = buffer->freeSlots + 1;
-    pthread_cond_signal(&(buffer->notFull));
+    pthread_cond_signal(&buffer->notFull);
     pthread_mutex_unlock(&(buffer->mutexCons));
     return msg;
 
@@ -178,4 +178,16 @@ void* args_get_non_bloccante(void* buffer){
     msg_t* msg = get_non_bloccante((buffer_t*) buffer);
     
     pthread_exit(msg);
+}
+
+// Verifico che il buffer contenga una data stringa, ritorna 1 se riesce ----> JFT
+int contains(buffer_t* buffer, msg_t* string) {
+    int i;
+    if(buffer != NULL) {
+        for(i = 0; i < buffer->size; i++) {
+            if(strcmp(buffer->message[i].content, string->content) == 0)
+                return 1;
+        }
+    }
+    return 0;
 }

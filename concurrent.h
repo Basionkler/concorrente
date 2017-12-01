@@ -75,4 +75,7 @@ void* args_get_bloccante(void* buffer);
 msg_t* get_non_bloccante(buffer_t* buffer);
 void* args_get_non_bloccante(void* buffer);
 
+//Verifica che un messaggio sia presente nel buffer
+int contains(buffer_t* buffer, msg_t* string);
+
 #endif
