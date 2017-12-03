@@ -146,10 +146,9 @@ void test_getAndPutUnitaryBuffer(void) {
 
 		pthread_create(&cons, NULL, args_get_bloccante, bufferUnitary);
 		pthread_create(&prod, NULL, args_put_bloccante, &args);
-		
 		pthread_join(cons, (void*)&expectedGet);
 		pthread_join(prod, (void*)&expectedPut);
-		
+
 		CU_ASSERT(1 == bufferUnitary->freeSlots); //Verifico che è vuoto
 		CU_ASSERT(0 == strcmp(expectedGet->content, expectedPut->content)); //Verifico che il messaggio estratto è effettivamente quello inserito
 	}
@@ -193,17 +192,14 @@ void test_multiplePutUnitaryBuffer(void) {
 		CU_ASSERT(0 == bufferUnitary->freeSlots); //Verifico che è pieno
 
 		if(expected_c != NULL && 0 == strcmp(expected_c->content, msg_c->content)) {
-			printf("\tC_THREAD HA INSERITO\t");
 			CU_ASSERT_EQUAL(expected_b, BUFFER_ERROR); //Verifico che non c'è inserimento
 			CU_ASSERT_EQUAL(expected_a, BUFFER_ERROR); //Verifico che non c'è inserimento
 			CU_ASSERT(0 == strcmp(expected_c->content, (char*)bufferUnitary->message[0].content)); //Verifico che il contenuto del buffer è esattamente quello inserito dal thread specifico
 		} else if (expected_b != NULL && 0 == strcmp(expected_b->content, msg_b->content)){
-			printf("\tB_THREAD HA INSERITO\t");
 			CU_ASSERT_EQUAL(expected_a, BUFFER_ERROR); //Verifico che non c'è inserimento
 			CU_ASSERT_EQUAL(expected_c, BUFFER_ERROR); //Verifico che non c'è inserimento
 			CU_ASSERT(0 == strcmp(expected_b->content, (char*)bufferUnitary->message[0].content)); //Verifico che il contenuto del buffer è esattamente quello inserito dal thread specifico
 		} else if (expected_a != NULL && 0 == strcmp(expected_a->content, msg_a->content)) {
-			printf("\tA_THREAD HA INSERITO\t");
 			CU_ASSERT_EQUAL(expected_c, BUFFER_ERROR); //Verifico che non c'è inserimento
 			CU_ASSERT_EQUAL(expected_b, BUFFER_ERROR); //Verifico che non c'è inserimento
 			CU_ASSERT(0 == strcmp(expected_a->content, (char*)bufferUnitary->message[0].content)); //Verifico che il contenuto del buffer è esattamente quello inserito dal thread specifico
@@ -217,6 +213,7 @@ void test_multiplePutUnitaryBuffer(void) {
 void test_putAndGetUnitaryBuffer(void) {
 
 	bufferUnitary->message[0].content = "EXPECTED_MESSAGE"; //Elimino '_X' finale del test precedente
+	msg_t* verify = msg_init_string("EXPECTED_MESSAGE");
 
 	msg_t* msg = msg_init_string("EXPECTED_MESSAGE");
 	msg_t* expectedPut;
@@ -225,6 +222,7 @@ void test_putAndGetUnitaryBuffer(void) {
 	arg_t args;
 	args.buffer = bufferUnitary;
 	args.msg = msg;
+
 	if(bufferUnitary != NULL) {
 		pthread_t cons;
 		pthread_t prod;
@@ -237,8 +235,8 @@ void test_putAndGetUnitaryBuffer(void) {
 		pthread_join(cons, (void*)&expectedGet);
 		pthread_join(prod, (void*)&expectedPut);
 
-		CU_ASSERT(0 == strcmp(msg->content, expectedGet->content)); //Verifico che il messaggio estratto sia quello atteso
-		CU_ASSERT(0 == strcmp(msg->content, expectedPut->content)); //Verifico che il messaggio inserito sia quello atteso
+		CU_ASSERT(0 == strcmp(verify->content, expectedGet->content)); //Verifico che il messaggio estratto sia quello atteso
+		CU_ASSERT(0 == strcmp(verify->content, expectedPut->content)); //Verifico che il messaggio inserito sia quello atteso
 
 		CU_ASSERT(0 == bufferUnitary->freeSlots); //Verifico che il buffer è pieno
 	}
@@ -267,28 +265,143 @@ void test_multipleGetUnitaryFullBuffer(void) {
 		pthread_join(cons_c, (void*)&expected_c);
 
 		if(expected_a != NULL && 0 == strcmp(expected_a->content, msg->content)) {
-			printf("\tTHREAD_A HA CONSUMATO\t");
 			CU_ASSERT_EQUAL(expected_b, BUFFER_ERROR);
 			CU_ASSERT_EQUAL(expected_c, BUFFER_ERROR);
 		} else if (expected_b != NULL && 0 == strcmp(expected_b->content, msg->content)) {
-			printf("\tTHREAD_B HA CONSUMATO\t");
 			CU_ASSERT_EQUAL(expected_a, BUFFER_ERROR);
 			CU_ASSERT_EQUAL(expected_c, BUFFER_ERROR);
 		} else if (expected_c != NULL && 0 == strcmp(expected_c->content, msg->content)) {
-			printf("\tTHREAD_C HA CONSUMATO\t");
 			CU_ASSERT_EQUAL(expected_b, BUFFER_ERROR);
 			CU_ASSERT_EQUAL(expected_a, BUFFER_ERROR);
 		}
 
-		CU_ASSERT(1 == bufferUnitary->freeSlots); //Il buffer continua a essere vuoto
+		CU_ASSERT(1 == bufferUnitary->freeSlots); //Il buffer è vuoto
 	} 
+}
+
+// Test[10] | Consumazioni e produzioni concorrenti di molteplici messaggi in un buffer unitario
+void test_multipleGetAndPutUnitaryBuffer(void) {
+	/* 6 produttori */
+	msg_t* msg_a = msg_init_string("EXPECTED_MESSAGE_A");
+	msg_t* msg_b = msg_init_string("EXPECTED_MESSAGE_B");
+	msg_t* msg_c = msg_init_string("EXPECTED_MESSAGE_C");
+	msg_t* msg_d = msg_init_string("EXPECTED_MESSAGE_D");
+	msg_t* msg_e = msg_init_string("EXPECTED_MESSAGE_E");
+	msg_t* msg_f = msg_init_string("EXPECTED_MESSAGE_F");
+	
+	msg_t* expected_a_put;
+	msg_t* expected_b_put;
+	msg_t* expected_c_put;
+	msg_t* expected_d_put;
+	msg_t* expected_e_put;
+	msg_t* expected_f_put;
+
+	/* 5 consumatori */
+	msg_t* expected_a_get;
+	msg_t* expected_b_get;
+	msg_t* expected_c_get;
+	msg_t* expected_d_get;
+	msg_t* expected_e_get;
+
+	arg_t args_a;
+	args_a.buffer = bufferUnitary;
+	args_a.msg = msg_a;
+
+	arg_t args_b;
+	args_b.buffer = bufferUnitary;
+	args_b.msg = msg_b;
+
+	arg_t args_c;
+	args_c.buffer = bufferUnitary;
+	args_c.msg = msg_c;
+
+	arg_t args_d;
+	args_d.buffer = bufferUnitary;
+	args_d.msg = msg_d;
+
+	arg_t args_e;
+	args_e.buffer = bufferUnitary;
+	args_e.msg = msg_e;
+
+	arg_t args_f;
+	args_f.buffer = bufferUnitary;
+	args_f.msg = msg_f;
+
+	if(bufferUnitary != NULL) {
+		/* dichiaro i thread dei produttori */
+		pthread_t prod_a;
+		pthread_t prod_b;
+		pthread_t prod_c;
+		pthread_t prod_d;
+		pthread_t prod_e;
+		pthread_t prod_f;
+
+		/* dichiaro i thread dei consumatori */
+		pthread_t cons_a;
+		pthread_t cons_b;
+		pthread_t cons_c;
+		pthread_t cons_d;
+		pthread_t cons_e;
+
+		CU_ASSERT(1 == bufferUnitary->freeSlots); //Il buffer è vuoto
+
+		/* I thread iniziano in maniera sparsa */
+		pthread_create(&cons_a, NULL, args_get_bloccante, bufferUnitary);
+		pthread_create(&cons_b, NULL, args_get_bloccante, bufferUnitary);
+
+		pthread_create(&prod_a, NULL, args_put_bloccante, &args_a);
+		pthread_create(&prod_b, NULL, args_put_bloccante, &args_b);
+		pthread_create(&prod_c, NULL, args_put_bloccante, &args_c);
+
+		pthread_create(&cons_c, NULL, args_get_bloccante, bufferUnitary);
+
+		pthread_create(&prod_d, NULL, args_put_bloccante, &args_d);
+
+		pthread_create(&cons_d, NULL, args_get_bloccante, bufferUnitary);
+
+		pthread_create(&prod_e, NULL, args_put_bloccante, &args_e);
+		pthread_create(&prod_f, NULL, args_put_bloccante, &args_f);
+
+		pthread_create(&cons_e, NULL, args_get_bloccante, bufferUnitary);
+
+		pthread_join(prod_a, (void*)&expected_a_put);
+		pthread_join(prod_b, (void*)&expected_b_put);
+		pthread_join(prod_c, (void*)&expected_c_put);
+		pthread_join(prod_d, (void*)&expected_d_put);
+		pthread_join(prod_e, (void*)&expected_e_put);
+		pthread_join(prod_f, (void*)&expected_f_put);
+
+		pthread_join(cons_a, (void*)&expected_a_get);
+		pthread_join(cons_b, (void*)&expected_b_get);
+		pthread_join(cons_c, (void*)&expected_c_get);
+		pthread_join(cons_d, (void*)&expected_d_get);
+		pthread_join(cons_e, (void*)&expected_e_get);
+
+		/* Tutti i thread scrivono */
+		CU_ASSERT_NOT_EQUAL(expected_a_put, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_b_put, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_c_put, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_d_put, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_e_put, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_f_put, BUFFER_ERROR);
+
+		/* Tutti i thread leggono */
+		CU_ASSERT_NOT_EQUAL(expected_a_get, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_b_get, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_c_get, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_d_get, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_e_get, BUFFER_ERROR);
+
+		/*Il buffer è pieno */
+		CU_ASSERT(0 == bufferUnitary->freeSlots);
+	}
 }
 
 /*END UNITARY BUFFER (MULTI THREAD)*/
 
 /* START BUFFER 4-SIZED TEST-CASES */
 
-// Test[10] - (P>1; C=0; N>1) Produzione concorrente di molteplici messaggi in un buffer vuoto; il buffer si satura in corso
+// Test[11] - (P>1; C=0; N>1) Produzione concorrente di molteplici messaggi in un buffer vuoto; il buffer si satura in corso
 void test_fullfillingEmptyBuffer(void) {
 	msg_t* msg_0 = msg_init_string("EXPECTED_MESSAGE_0");
 	msg_t* msg_1 = msg_init_string("EXPECTED_MESSAGE_1");
@@ -352,14 +465,12 @@ void test_fullfillingEmptyBuffer(void) {
 			expected_3 != NULL && 0 == strcmp(expected_3->content, msg_3->content)
 			) {
 			CU_ASSERT_EQUAL(expected_4, BUFFER_ERROR);
-			printf(" THREAD_4 NON INSERISCE\t");
-			/*
+			CU_ASSERT(0 == contains(buffer, expected_4)); // 4 non è nel buffer
 			CU_ASSERT(1 == contains(buffer, expected_0)); // è presente nel buffer
 			CU_ASSERT(1 == contains(buffer, expected_1));
 			CU_ASSERT(1 == contains(buffer, expected_2));
 			CU_ASSERT(1 == contains(buffer, expected_3));
-			CU_ASSERT(0 == contains(buffer, expected_4)); // message_4 non presente nel buffer
-			*/
+
 		} else if ( //thread_0 non inserisce
 			expected_1 != NULL && 0 == strcmp(expected_1->content, msg_1->content) &&
 			expected_2 != NULL && 0 == strcmp(expected_2->content, msg_2->content) &&
@@ -367,14 +478,12 @@ void test_fullfillingEmptyBuffer(void) {
 			expected_4 != NULL && 0 == strcmp(expected_4->content, msg_4->content)
 			) {
 				CU_ASSERT_EQUAL(expected_0, BUFFER_ERROR);
-				printf(" THREAD_0 NON INSERISCE\t");
-				/*
+				CU_ASSERT(0 == contains(buffer, expected_0)); // 0 non è nel buffer
 				CU_ASSERT(1 == contains(buffer, expected_1)); // è presente nel buffer
 				CU_ASSERT(1 == contains(buffer, expected_2));
 				CU_ASSERT(1 == contains(buffer, expected_3));
 				CU_ASSERT(1 == contains(buffer, expected_4));
-				CU_ASSERT(0 == contains(buffer, expected_0)); // message_0 non presente nel buffer
-				*/
+				
 		} else if ( //thread_1 non inserisce
 			expected_2 != NULL && 0 == strcmp(expected_2->content, msg_2->content) &&
 			expected_3 != NULL && 0 == strcmp(expected_3->content, msg_3->content) &&
@@ -382,14 +491,12 @@ void test_fullfillingEmptyBuffer(void) {
 			expected_0 != NULL && 0 == strcmp(expected_0->content, msg_0->content)
 			) {
 				CU_ASSERT_EQUAL(expected_1, BUFFER_ERROR);
-				printf(" THREAD_1 NON INSERISCE\t");
-				/*
+				CU_ASSERT(0 == contains(buffer, expected_1)); // 1 non è nel buffer
 				CU_ASSERT(1 == contains(buffer, expected_0)); // è presente nel buffer
 				CU_ASSERT(1 == contains(buffer, expected_2));
 				CU_ASSERT(1 == contains(buffer, expected_3));
 				CU_ASSERT(1 == contains(buffer, expected_4));
-				CU_ASSERT(0 == contains(buffer, expected_1)); // message_1 non presente nel buffer
-				*/
+				
 		} else if ( //thread_2 non inserisce
 			expected_3 != NULL && 0 == strcmp(expected_3->content, msg_3->content) &&
 			expected_4 != NULL && 0 == strcmp(expected_4->content, msg_4->content) &&
@@ -397,14 +504,12 @@ void test_fullfillingEmptyBuffer(void) {
 			expected_1 != NULL && 0 == strcmp(expected_1->content, msg_1->content)
 			) {
 				CU_ASSERT_EQUAL(expected_2, BUFFER_ERROR);
-				printf(" THREAD_2 NON INSERISCE\t");
-				/*
+				CU_ASSERT(0 == contains(buffer, expected_2)); // 2 non è nel buffer
 				CU_ASSERT(1 == contains(buffer, expected_1)); // è presente nel buffer
 				CU_ASSERT(1 == contains(buffer, expected_3));
 				CU_ASSERT(1 == contains(buffer, expected_4));
 				CU_ASSERT(1 == contains(buffer, expected_0));
-				CU_ASSERT(0 == contains(buffer, expected_2)); // message_2 non presente nel buffer
-				*/
+				
 		} else if ( //thread_3 non inserisce
 			expected_4 != NULL && 0 == strcmp(expected_4->content, msg_4->content) &&
 			expected_0 != NULL && 0 == strcmp(expected_0->content, msg_0->content) &&
@@ -412,19 +517,17 @@ void test_fullfillingEmptyBuffer(void) {
 			expected_2 != NULL && 0 == strcmp(expected_2->content, msg_2->content)
 			) {
 				CU_ASSERT_EQUAL(expected_3, BUFFER_ERROR);
-				printf(" THREAD_3 NON INSERISCE\t");
-				/*
+				CU_ASSERT(0 == contains(buffer, expected_3)); // 3 non è nel buffer
 				CU_ASSERT(1 == contains(buffer, expected_1)); // è presente nel buffer
 				CU_ASSERT(1 == contains(buffer, expected_2));
 				CU_ASSERT(1 == contains(buffer, expected_4));
 				CU_ASSERT(1 == contains(buffer, expected_0));
-				CU_ASSERT(0 == contains(buffer, expected_3)); // message_3 non presente nel buffer
-				*/
+				
 		} 
 	}
 }
 
-// TEST[11] - (P>1; C=0; N>1) Produzione concorrente di molteplici messaggi in un buffer pieno; il buffer è già saturo
+// TEST[12] - (P>1; C=0; N>1) Produzione concorrente di molteplici messaggi in un buffer pieno; il buffer è già saturo
 void test_multiplePutFullBuffer(void) {
 	msg_t* msg_0 = msg_init_string("MESSAGE");
 	msg_t* msg_1 = msg_init_string("MESSAGE");
@@ -468,12 +571,13 @@ void test_multiplePutFullBuffer(void) {
 	}
 }
 
-// Test[12] - (P=0; C>1; N>1) Consumazione concorrente di molteplici messaggi da un buffer pieno
+// Test[13] - (P=0; C>1; N>1) Consumazione concorrente di molteplici messaggi da un buffer pieno
 void test_multipleGetFullBuffer(void) {
-	msg_t expected_0;
-	msg_t expected_1;
-	msg_t expected_2;
-	msg_t expected_3;
+
+	msg_t* expected_0;
+	msg_t* expected_1;
+	msg_t* expected_2;
+	msg_t* expected_3;
 
 	if(buffer != NULL) {
 		pthread_t cons_0;
@@ -481,13 +585,7 @@ void test_multipleGetFullBuffer(void) {
 		pthread_t cons_2;
 		pthread_t cons_3;
 
-		printf("\n\t\t%s\t", (char*)buffer->message[0].content);
-		printf("\n\t\t%s\t", (char*)buffer->message[1].content);
-		printf("\n\t\t%s\t", (char*)buffer->message[2].content);
-		printf("\n\t\t%s\t", (char*)buffer->message[3].content);
-
 		CU_ASSERT(0 == buffer->freeSlots); //Verifico che il buffer è pieno
-
 		
 		pthread_create(&cons_0, NULL, args_get_non_bloccante, buffer);
 		pthread_create(&cons_1, NULL, args_get_non_bloccante, buffer);
@@ -499,17 +597,221 @@ void test_multipleGetFullBuffer(void) {
 		pthread_join(cons_2, (void*)&expected_2);
 		pthread_join(cons_3, (void*)&expected_3);
 
-		printf("\n\t\t%s\t", (char*)expected_0.content);
-		printf("\n\t\t%s\t", (char*)expected_1.content);
-		printf("\n\t\t%s\t", (char*)expected_2.content);
-		printf("\n\t\t%s\t", (char*)expected_3.content);
+		CU_ASSERT_NOT_EQUAL(expected_0, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_1, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_2, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_3, BUFFER_ERROR);
 		CU_ASSERT(4 == buffer->freeSlots) //Verifico che ora il buffer è vuoto
 	}
 }
 
-//(P>1; C=0; N>1) Produzione concorrente di molteplici messaggi in un buffer vuoto; il buffer non si riempe
+// TEST[14] - (P>1; C=0; N>1) Produzione concorrente di molteplici messaggi in un buffer vuoto; il buffer non si riempe
 void test_multiplePutEmptyBuffer(void) {
+	msg_t* msg_0 = msg_init_string("MESSAGE_0");
+	msg_t* msg_1 = msg_init_string("MESSAGE_1");
+	msg_t* msg_2 = msg_init_string("MESSAGE_2");
 
+	msg_t* expected_0;
+	msg_t* expected_1;
+	msg_t* expected_2;
+
+	arg_t args_0;
+	args_0.buffer = buffer;
+	args_0.msg = msg_0;
+
+	arg_t args_1;
+	args_1.buffer = buffer;
+	args_1.msg = msg_1;
+
+	arg_t args_2;
+	args_2.buffer = buffer;
+	args_2.msg = msg_2;
+
+	if(buffer != NULL) {
+		pthread_t prod_0;
+		pthread_t prod_1;
+		pthread_t prod_2;
+
+		CU_ASSERT(4 == buffer->freeSlots); //Verifico che il buffer è vuoto
+
+		pthread_create(&prod_0, NULL, args_put_non_bloccante, &args_0);
+		pthread_create(&prod_1, NULL, args_put_non_bloccante, &args_1);
+		pthread_create(&prod_2, NULL, args_put_non_bloccante, &args_2);
+
+		pthread_join(prod_0, (void*)&expected_0);
+		pthread_join(prod_1, (void*)&expected_1);
+		pthread_join(prod_2, (void*)&expected_2);
+
+		CU_ASSERT_NOT_EQUAL(buffer->freeSlots, 0); //Il buffer non è pieno
+		CU_ASSERT_NOT_EQUAL(buffer->freeSlots, 4); //il buffer non è vuoto
+		CU_ASSERT(1 == buffer->freeSlots); // 3 thread creati in un buffer vuoto di dimensione 4. Rimane 1 solo slot libero.
+
+	}
+}
+
+// TEST[15] - Consumazioni e produzioni concorrenti di molteplici messaggi in un buffer
+void test_multipleGetAndPutBuffer(void) {
+
+	/* Inizializzo i messaggi di 8 produttori */
+	msg_t* msg_0 = msg_init_string("EXPECTED_MESSAGE_0");
+	msg_t* msg_1 = msg_init_string("EXPECTED_MESSAGE_1");
+	msg_t* msg_2 = msg_init_string("EXPECTED_MESSAGE_2");
+	msg_t* msg_3 = msg_init_string("EXPECTED_MESSAGE_3");
+	msg_t* msg_4 = msg_init_string("EXPECTED_MESSAGE_4");
+	msg_t* msg_5 = msg_init_string("EXPECTED_MESSAGE_5");
+	msg_t* msg_6 = msg_init_string("EXPECTED_MESSAGE_6");
+	msg_t* msg_7 = msg_init_string("EXPECTED_MESSAGE_7");
+
+	msg_t* expected_0_put;
+	msg_t* expected_1_put;
+	msg_t* expected_2_put;
+	msg_t* expected_3_put;
+	msg_t* expected_4_put;
+	msg_t* expected_5_put;
+	msg_t* expected_6_put;
+	msg_t* expected_7_put;
+
+	/* 9 messaggi consumati */
+	msg_t* expected_0_get;
+	msg_t* expected_1_get;
+	msg_t* expected_2_get;
+	msg_t* expected_3_get;
+	msg_t* expected_4_get;
+	msg_t* expected_5_get;
+	msg_t* expected_6_get;
+	msg_t* expected_7_get;
+	msg_t* expected_8_get;
+
+	/* Setup arguments*/
+	arg_t args_0;
+	args_0.buffer = buffer;
+	args_0.msg = msg_0;
+
+	arg_t args_1;
+	args_1.buffer = buffer;
+	args_1.msg = msg_1;
+
+	arg_t args_2;
+	args_2.buffer = buffer;
+	args_2.msg = msg_2;
+
+	arg_t args_3;
+	args_3.buffer = buffer;
+	args_3.msg = msg_3;
+
+	arg_t args_4;
+	args_4.buffer = buffer;
+	args_4.msg = msg_4;
+
+	arg_t args_5;
+	args_5.buffer = buffer;
+	args_5.msg = msg_5;
+
+	arg_t args_6;
+	args_6.buffer = buffer;
+	args_6.msg = msg_6;
+
+	arg_t args_7;
+	args_7.buffer = buffer;
+	args_7.msg = msg_7;
+
+	if(buffer != NULL) {
+		/* creating producer threads */
+		pthread_t prod_0;
+		pthread_t prod_1;
+		pthread_t prod_2;
+		pthread_t prod_3;
+		pthread_t prod_4;
+		pthread_t prod_5;
+		pthread_t prod_6;
+		pthread_t prod_7;
+
+		/* creating consumer threads */
+		pthread_t cons_0;
+		pthread_t cons_1;
+		pthread_t cons_2;
+		pthread_t cons_3;
+		pthread_t cons_4;
+		pthread_t cons_5;
+		pthread_t cons_6;
+		pthread_t cons_7;
+		pthread_t cons_8;
+
+		CU_ASSERT_NOT_EQUAL(buffer->freeSlots, 0); //Il buffer non è pieno
+		CU_ASSERT_NOT_EQUAL(buffer->freeSlots, 4); //il buffer non è vuoto
+
+		/* Vengono creati i thread in ordine sparso */
+		pthread_create(&prod_0, NULL, args_put_bloccante, &args_0);
+		pthread_create(&prod_1, NULL, args_put_bloccante, &args_1);
+
+		pthread_create(&cons_0, NULL, args_get_bloccante, buffer);
+
+		pthread_create(&prod_2, NULL, args_put_bloccante, &args_2);
+
+		pthread_create(&cons_1, NULL, args_get_bloccante, buffer);
+		pthread_create(&cons_2, NULL, args_get_bloccante, buffer);
+
+		pthread_create(&prod_3, NULL, args_put_bloccante, &args_3);
+
+		pthread_create(&cons_3, NULL, args_get_bloccante, buffer);
+		pthread_create(&cons_4, NULL, args_get_bloccante, buffer);
+
+		pthread_create(&prod_4, NULL, args_put_bloccante, &args_4);
+
+		pthread_create(&cons_5, NULL, args_get_bloccante, buffer);
+		pthread_create(&cons_6, NULL, args_get_bloccante, buffer);
+		pthread_create(&cons_7, NULL, args_get_bloccante, buffer);
+
+		pthread_create(&prod_5, NULL, args_put_bloccante, &args_5);
+		pthread_create(&prod_6, NULL, args_put_bloccante, &args_6);
+
+		pthread_create(&cons_8, NULL, args_get_bloccante, buffer);
+		pthread_create(&prod_7, NULL, args_put_bloccante, &args_7);
+
+		pthread_join(prod_0, (void*)&expected_0_put);
+		pthread_join(prod_1, (void*)&expected_1_put);
+		pthread_join(prod_2, (void*)&expected_2_put);
+		pthread_join(prod_3, (void*)&expected_3_put);
+		pthread_join(prod_4, (void*)&expected_4_put);
+		pthread_join(prod_5, (void*)&expected_5_put);
+		pthread_join(prod_6, (void*)&expected_6_put);
+		pthread_join(prod_7, (void*)&expected_7_put);
+
+		pthread_join(cons_0, (void*)&expected_0_get);
+		pthread_join(cons_1, (void*)&expected_1_get);
+		pthread_join(cons_2, (void*)&expected_2_get);
+		pthread_join(cons_3, (void*)&expected_3_get);
+		pthread_join(cons_4, (void*)&expected_4_get);
+		pthread_join(cons_5, (void*)&expected_5_get);
+		pthread_join(cons_6, (void*)&expected_6_get);
+		pthread_join(cons_7, (void*)&expected_7_get);
+		pthread_join(cons_8, (void*)&expected_8_get);
+
+		/* Tutti i thread scrivono */
+		CU_ASSERT_NOT_EQUAL(expected_0_put, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_1_put, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_2_put, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_3_put, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_4_put, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_5_put, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_6_put, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_7_put, BUFFER_ERROR);
+
+		/* Tutti i thread leggono */
+		CU_ASSERT_NOT_EQUAL(expected_0_get, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_1_get, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_2_get, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_3_get, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_4_get, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_5_get, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_6_get, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_7_get, BUFFER_ERROR);
+		CU_ASSERT_NOT_EQUAL(expected_8_get, BUFFER_ERROR);
+
+		CU_ASSERT_NOT_EQUAL(buffer->freeSlots, 0); //Il buffer non è pieno
+		CU_ASSERT_NOT_EQUAL(buffer->freeSlots, 4); //il buffer non è vuoto
+		CU_ASSERT(2 == buffer->size - buffer->freeSlots); //Complessivamente mi rimangono due slot liberi
+	}
 }
 
 /* END BUFFER K-SIZED TEST-CASES */
@@ -568,16 +870,19 @@ int main() {
     if( CU_add_test(cUnitBufferUnitary_multi, "Test[6] | Consumazione e produzione concorrente di un messaggio in un buffer unitario; prima il consumatore", test_getAndPutUnitaryBuffer) == NULL ||
     	CU_add_test(cUnitBufferUnitary_multi, "Test[7] | Produzione concorrente di molteplici messaggi in un buffer unitario vuoto", test_multiplePutUnitaryBuffer) == NULL ||
     	CU_add_test(cUnitBufferUnitary_multi, "Test[8] | Consumazione e produzione concorrente di un messaggio in un buffer unitario; prima il produttore", test_putAndGetUnitaryBuffer) == NULL ||
-    	CU_add_test(cUnitBufferUnitary_multi, "Test[9] | Consumazione concorrente di molteplici messaggi da un buffer unitario pieno", test_multipleGetUnitaryFullBuffer) == NULL
+    	CU_add_test(cUnitBufferUnitary_multi, "Test[9] | Consumazione concorrente di molteplici messaggi da un buffer unitario pieno", test_multipleGetUnitaryFullBuffer) == NULL ||
+    	CU_add_test(cUnitBufferUnitary_multi, "Test[10] | Consumazioni e produzioni concorrenti di molteplici messaggi in un buffer unitario", test_multipleGetAndPutUnitaryBuffer) == NULL
     	) {
     		CU_cleanup_registry();
 	        return CU_get_error();
     }
 
     /* ADDING 4-SIZED-MULTI-THREAD STACK TEST */
-    if( CU_add_test(cUnitBuffer, "Test[10] | Produzione concorrente di molteplici messaggi in un buffer vuoto; il buffer si satura in corso", test_fullfillingEmptyBuffer) == NULL ||
-    	CU_add_test(cUnitBuffer, "Test[11] | Produzione concorrente di molteplici messaggi in un buffer pieno; il buffer è già saturo", test_multiplePutFullBuffer) == NULL ||
-    	CU_add_test(cUnitBuffer, "Test[12] | Consumazione concorrente di molteplici messaggi da un buffer pieno", test_multipleGetFullBuffer) == NULL
+    if( CU_add_test(cUnitBuffer, "Test[11] | Produzione concorrente di molteplici messaggi in un buffer vuoto; il buffer si satura in corso", test_fullfillingEmptyBuffer) == NULL ||
+    	CU_add_test(cUnitBuffer, "Test[12] | Produzione concorrente di molteplici messaggi in un buffer pieno; il buffer è già saturo", test_multiplePutFullBuffer) == NULL ||
+    	CU_add_test(cUnitBuffer, "Test[13] | Consumazione concorrente di molteplici messaggi da un buffer pieno", test_multipleGetFullBuffer) == NULL ||
+    	CU_add_test(cUnitBuffer, "Test[14] | Produzione concorrente di molteplici messaggi in un buffer vuoto; il buffer non si riempe", test_multiplePutEmptyBuffer) == NULL ||
+    	CU_add_test(cUnitBuffer, "Test[15] | Consumazioni e produzioni concorrenti di molteplici messaggi in un buffer", test_multipleGetAndPutBuffer) == NULL
     	) {
 	    	CU_cleanup_registry();
 	    	return CU_get_error();

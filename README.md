@@ -1,6 +1,11 @@
 # concorrente
 #HWC
 
+v 1.8
+- introduced pthread_cond_timewait
+- major improvements to all functions
+- major improvements to test-cases
+
 V 1.6
 - Improvements to test-concurrency
 

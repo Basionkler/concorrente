@@ -45,6 +45,7 @@ buffer_t* buffer_init(unsigned int maxsize){
 
 	pthread_mutex_init(&(buffer->mutexProd), NULL);
 	pthread_mutex_init(&(buffer->mutexCons), NULL);
+    pthread_mutex_init(&(buffer->mutexIndex), NULL);
 	pthread_cond_init(&(buffer->notFull), NULL);
 	pthread_cond_init(&(buffer->notEmpty), NULL);
 
@@ -74,24 +75,32 @@ void buffer_destroy(buffer_t * buffer){
 // effettua l’inserimento non appena si libera dello spazio
 // restituisce il messaggio inserito; N.B.: msg!=null
 msg_t* put_bloccante(buffer_t* buffer, msg_t* msg){
+
+    if(msg == NULL)
+        return BUFFER_ERROR;
+
+    struct timespec timeToWait;
+    struct timeval now;
+
+    gettimeofday(&now,NULL);
+    timeToWait.tv_sec = now.tv_sec+5;
+    timeToWait.tv_nsec = (now.tv_usec+1000UL*1000)*1000UL;
+    
     pthread_mutex_lock(&buffer->mutexProd);
-
-
-    if(msg != NULL) {
-        
-        while(buffer->freeSlots == 0)
-            pthread_cond_wait(&buffer->notFull, &buffer->mutexProd);
-
-        int i = buffer->produce;
-        buffer->message[i] = *msg;
-        buffer->produce = (i+1) % buffer->size;
-        buffer->freeSlots = buffer->freeSlots-1;
-        pthread_cond_signal(&buffer->notEmpty);
-        pthread_mutex_unlock(&buffer->mutexProd);
-        return msg;
+    while(buffer->freeSlots == 0) {
+            pthread_cond_timedwait(&buffer->notFull, &buffer->mutexProd, &timeToWait);
     }
+    /* Operazioni sugli indici */
+    pthread_mutex_lock(&buffer->mutexIndex);
+    int i = buffer->produce;
+    buffer->message[i] = *msg;
+    buffer->produce = (i+1) % buffer->size;
+    buffer->freeSlots = buffer->freeSlots-1;
+    /* Invio la signal e sblocco i semafori */
+    pthread_mutex_unlock(&buffer->mutexIndex);
+    pthread_cond_signal(&buffer->notEmpty);
     pthread_mutex_unlock(&buffer->mutexProd);
-    return BUFFER_ERROR;
+    return msg;
 }
 
 
@@ -105,14 +114,19 @@ void* args_put_bloccante(void* arguments) {
 // altrimenti effettua l’inserimento e restituisce il messaggio
 // inserito; N.B.: msg!=null
 msg_t* put_non_bloccante(buffer_t* buffer, msg_t* msg){
-    int i = buffer->produce;;
     pthread_mutex_lock(&(buffer->mutexProd));
     if(msg != NULL) {
         if(buffer->freeSlots > 0) {
+
+            /* Operazioni sugli indici */
+            pthread_mutex_lock(&(buffer->mutexIndex));
+            int i = buffer->produce;
             buffer->message[i] = *msg;
             buffer->produce = (i+1) % buffer->size;
             buffer->freeSlots = buffer->freeSlots-1;
+
             pthread_cond_signal(&(buffer->notEmpty));
+            pthread_mutex_unlock(&buffer->mutexIndex);
             pthread_mutex_unlock(&(buffer->mutexProd));
             return msg;
         }
@@ -132,15 +146,25 @@ void* args_put_non_bloccante(void* arguments) {
 // restituisce il valore estratto non appena disponibile
 msg_t* get_bloccante(buffer_t* buffer) {
 
-    pthread_mutex_lock(&(buffer->mutexCons));
+    struct timespec timeToWait;
+    struct timeval now;
 
-    while(buffer->size - buffer->freeSlots == 0) // Se il buffer è vuoto
-        pthread_cond_wait(&buffer->notEmpty, &buffer->mutexCons);
+    gettimeofday(&now,NULL);
+    timeToWait.tv_sec = now.tv_sec+5;
+    timeToWait.tv_nsec = (now.tv_usec+1000UL*1000)*1000UL;
+
+    pthread_mutex_lock(&(buffer->mutexCons));
+    while(buffer->size - buffer->freeSlots == 0) {
+            pthread_cond_timedwait(&buffer->notEmpty, &buffer->mutexCons, &timeToWait);
+    }
+    /* Operazioni sugli indici */
+    pthread_mutex_lock(&buffer->mutexIndex);
     int i = buffer->consume;
     msg_t* msg = msg_init_string(buffer->message[i].content); //Copio il contenuto del messaggio estratto
     buffer->message[i].msg_destroy;
     buffer->consume = (i+1) % buffer->size;
     buffer->freeSlots = buffer->freeSlots + 1;
+    pthread_mutex_unlock(&buffer->mutexIndex);
     pthread_cond_signal(&buffer->notFull);
     pthread_mutex_unlock(&(buffer->mutexCons));
     return msg;
@@ -158,17 +182,21 @@ msg_t* get_non_bloccante(buffer_t* buffer) {
 
     pthread_mutex_lock(&(buffer->mutexCons));
 
-    if(buffer->size - buffer->freeSlots == 0){ //se il buffer è vuoto
+    if(buffer->size - buffer->freeSlots == 0) { //se il buffer è vuoto
         pthread_mutex_unlock(&(buffer->mutexCons));
         return BUFFER_ERROR;
     }
 
+    /* Operazioni sugli indici */
+    pthread_mutex_lock(&buffer->mutexIndex);
     int i = buffer->consume;
     msg_t* msg = msg_init_string(buffer->message[i].content); //Copio il contenuto del messaggio estratto
     buffer->message[i].msg_destroy; //Distruggo il messaggio nel buffer
     buffer->consume = (i+1) % buffer->size;
     buffer->freeSlots = buffer->freeSlots + 1;
+
     pthread_cond_signal(&(buffer->notFull));
+    pthread_mutex_unlock(&buffer->mutexIndex);
     pthread_mutex_unlock(&(buffer->mutexCons));
     return msg;
 }
@@ -180,10 +208,10 @@ void* args_get_non_bloccante(void* buffer){
     pthread_exit(msg);
 }
 
-// Verifico che il buffer contenga una data stringa, ritorna 1 se riesce ----> JFT
+// Verifico che il buffer contenga una data stringa, ritorna 1 se riesce
 int contains(buffer_t* buffer, msg_t* string) {
     int i;
-    if(buffer != NULL) {
+    if(buffer != NULL && string != NULL) {
         for(i = 0; i < buffer->size; i++) {
             if(strcmp(buffer->message[i].content, string->content) == 0)
                 return 1;

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <pthread.h>
 
 typedef struct msg {
     void* content; // generico contenuto del messaggio
@@ -17,11 +18,12 @@ typedef struct buffer {
     int size; //dimensione
     int produce; //indice per i produttori
     int consume; //indice per i consumatori
-    int freeSlots; //Quanti slot liberi ho --> Testing Buffer unitario
+    int freeSlots; //Quanti slot liberi ho
     msg_t* message; //contenuto del blocco
 
     pthread_mutex_t mutexProd; //Mutex Produttori
     pthread_mutex_t mutexCons; //Mutex Consumatori
+    pthread_mutex_t mutexIndex; //Mutex sugli slot liberi
     pthread_cond_t notEmpty; //Buffer non vuoto
     pthread_cond_t notFull; //Buffer non pieno
 
